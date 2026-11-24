@@ -67,6 +67,36 @@ describe("buildHandoffPrompt", () => {
     expect(prompt).not.toContain("abcdefghijklmnopqrstuvwxyz123456");
     expect(prompt).toContain("[REDACTED]");
   });
+
+  it("includes Notion project board instructions and surfaces detected project URLs even when truncated", () => {
+    const projectUrl = "https://app.notion.com/p/11111111222233334444555555555555";
+    const taskUrl = "https://app.notion.com/p/aaaaaaaabbbbccccddddeeeeeeeeeeee";
+    const timeline: AgentTimelineItem[] = [
+      {
+        type: "tool_call",
+        callId: "notion-1",
+        name: "notion-create-pages",
+        status: "completed",
+        error: null,
+        detail: {
+          type: "unknown",
+          input: { pages: [{ properties: { Project: projectUrl } }] },
+          output: { pages: [{ url: taskUrl }] },
+        },
+      },
+      ...longTimeline(200),
+    ];
+    const prompt = buildHandoffPrompt(timeline, meta, 20_000);
+    expect(prompt).toContain("## Notion project board");
+    expect(prompt).toContain(`Associated Notion project:** ${projectUrl}`);
+    expect(prompt).toContain(taskUrl);
+    expect(prompt.length).toBeLessThanOrEqual(20_200);
+  });
+
+  it("omits Notion project board instructions when disabled in meta", () => {
+    const prompt = buildHandoffPrompt(longTimeline(1), { ...meta, notionProjectBoard: false }, 60_000);
+    expect(prompt).not.toContain("## Notion project board");
+  });
 });
 
 describe("redact", () => {

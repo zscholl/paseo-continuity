@@ -6,6 +6,8 @@ export const LABEL = {
   sequence: "continuity.sequence",
   consecutive: "continuity.consecutive",
   reason: "continuity.reason",
+  notionProject: "continuity.notionProject",
+  notionUrls: "continuity.notionUrls",
 } as const;
 
 const PROVIDER_BADGES: Record<string, { badge: string; label: string }> = {

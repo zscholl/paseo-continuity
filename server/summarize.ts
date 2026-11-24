@@ -2,6 +2,7 @@ import type { PluginHandlerContext } from "@getpaseo/plugin/server";
 import type { AgentTimelineItem } from "@getpaseo/protocol/agent-types";
 import type { ContinuitySettings } from "../shared/settings";
 import { LABEL } from "../shared/labels";
+import { NOTION_SUMMARY_INSTRUCTION } from "./notion";
 import { buildHandoffPrompt, redact, type HandoffMeta } from "./serialize";
 
 // Derived from the plugin context: "@getpaseo/client" is not resolvable at install time.
@@ -38,13 +39,16 @@ export async function summarizeTimeline(
   const by = summary.model ? `${summary.provider}/${summary.model}` : summary.provider;
   try {
     const source = buildHandoffPrompt(timeline, meta, summary.inputChars);
+    const instructions = settings.notionProjectBoard.enabled
+      ? `${INSTRUCTIONS}\n${NOTION_SUMMARY_INSTRUCTION}`
+      : INSTRUCTIONS;
     const workspace = agent.workspaceId
       ? paseo.workspaces.ref(agent.workspaceId)
       : await paseo.workspaces.open(agent.cwd);
     const handle = await workspace.agents.create({
       config: { provider: by, systemPrompt: SYSTEM_PROMPT },
       title: "Continuity summary",
-      prompt: `${INSTRUCTIONS}\n\n${source}`,
+      prompt: `${instructions}\n\n${source}`,
       labels: { [LABEL.provider]: summary.provider, [LABEL.reason]: "summary" },
     });
     try {

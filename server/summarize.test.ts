@@ -11,7 +11,7 @@ const enabled = {
 };
 
 function fakePaseo(result: object, archive = vi.fn(async () => ({}))) {
-  const create = vi.fn(async () => ({ waitForFinish: async () => result, archive }));
+  const create = vi.fn(async (_input?: unknown) => ({ waitForFinish: async () => result, archive }));
   return { paseo: { workspaces: { ref: () => ({ agents: { create } }) } } as never, create, archive };
 }
 
@@ -37,5 +37,12 @@ describe("summarizeTimeline", () => {
   it("falls back to null on timeout", async () => {
     const { paseo } = fakePaseo({ status: "timeout", lastMessage: null, error: null });
     expect(await summarizeTimeline(paseo, enabled, agent, timeline, meta)).toBeNull();
+  });
+
+  it("asks the summarizer to preserve Notion project context when enabled", async () => {
+    const { paseo, create } = fakePaseo({ status: "idle", lastMessage: "Summary" });
+    await summarizeTimeline(paseo, enabled, agent, timeline, meta);
+    const call = create.mock.calls[0]?.[0] as { prompt: string } | undefined;
+    expect(call?.prompt).toContain("same Notion project board");
   });
 });

@@ -12,6 +12,7 @@ import type { ChainEntry, ContinuitySettings } from "../shared/settings";
 import { checkBreaker, chainPositionFromLabels, nextConsecutive, pickNextEntry } from "./chain";
 import { summarizeTimeline } from "./summarize";
 import { writeHandoffFile } from "./handoff-file";
+import { extractNotionContext, notionLabelsFromContext, priorNotionFromLabels } from "./notion";
 import { buildHandoffPrompt } from "./serialize";
 import type { ContinuityState } from "./state";
 import { userMessages } from "./timeline";
@@ -124,12 +125,19 @@ export async function runFailover(
 
   const budget =
     settings.contextMode === "full" ? settings.budgets.fullChars : settings.budgets.automaticChars;
+  const notionConfig = settings.notionProjectBoard;
+  const notionContext = notionConfig.enabled
+    ? extractNotionContext(request.timeline, priorNotionFromLabels(labels), notionConfig)
+    : null;
   const meta = {
     fromAgentId: agent.id,
     fromProvider: refreshed?.agent.model ? `${fromProvider}/${refreshed.agent.model}` : fromProvider,
     cwd: agent.cwd,
     reason,
     evidence: request.evidence,
+    notionProjectBoard: notionConfig.enabled,
+    notionConfig,
+    ...(notionContext ? { notionContext } : {}),
   };
   const summary = await summarizeTimeline(paseo, settings, agent, request.timeline, meta);
   // With a summary, keep only a short verbatim tail as ground truth next to it.
@@ -144,7 +152,7 @@ export async function runFailover(
   let prompt = handoffText;
   if (request.handoff === "file") {
     try {
-      prompt = await writeHandoffFile(agent.cwd, agent.id, handoffText);
+      prompt = await writeHandoffFile(agent.cwd, agent.id, handoffText, notionContext, notionConfig);
     } catch (error) {
       log("could not write handoff file, sending inline", errorText(error));
     }
@@ -178,6 +186,7 @@ export async function runFailover(
         [LABEL.sequence]: String(sequence),
         [LABEL.consecutive]: String(nextConsecutive(position, madeProgress)),
         [LABEL.reason]: reason,
+        ...(notionContext ? notionLabelsFromContext(notionContext) : {}),
       },
     });
     state.recordFailover();

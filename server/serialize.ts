@@ -1,5 +1,11 @@
 import type { AgentTimelineItem, ToolCallDetail } from "@getpaseo/protocol/agent-types";
 import type { FailureClass } from "../shared/contracts";
+import {
+  buildNotionSection,
+  extractNotionContext,
+  type NotionBoardConfig,
+  type NotionProjectContext,
+} from "./notion";
 import { userMessages } from "./timeline";
 
 export interface HandoffMeta {
@@ -8,6 +14,12 @@ export interface HandoffMeta {
   cwd: string;
   reason: FailureClass;
   evidence: string;
+  /** Whether to include Notion project board tracking instructions (defaults to true). */
+  notionProjectBoard?: boolean;
+  /** Optional Notion database/skill locations from plugin settings. */
+  notionConfig?: NotionBoardConfig;
+  /** Pre-extracted Notion project context (including labels from earlier hops in the chain). */
+  notionContext?: NotionProjectContext;
 }
 
 const TASK_CAP = 8_000;
@@ -48,6 +60,10 @@ export function buildHandoffPrompt(
   ].join("\n");
 
   const fixed: string[] = [header];
+  if (meta.notionProjectBoard !== false) {
+    const notionContext = meta.notionContext ?? extractNotionContext(timeline, undefined, meta.notionConfig);
+    fixed.push(buildNotionSection(notionContext, meta.notionConfig));
+  }
   fixed.push(section("Original task", cap(firstTask, TASK_CAP)));
   if (latestRequest && latestRequest !== firstTask) {
     fixed.push(section("Latest user request", cap(latestRequest, TASK_CAP)));

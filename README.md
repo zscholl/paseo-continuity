@@ -57,6 +57,7 @@ warning, nothing changes: automatic failover still happens when the provider act
 - Watches completed turns in the daemon, independent of the failed provider.
 - Classifies quota and rate-limit errors conservatively.
 - Serializes a bounded projected timeline and redacts common credential patterns.
+- Extracts any Notion project/task URLs from the prior session (and carries them across chained failovers) and instructs the successor to pick up, update, and log tasks on the same Notion project board following your Notion Project Management skill. Optional Notion database URLs and `collection://` data source IDs can be configured under **Settings → Plugins → Paseo Continuity → Notion project board**.
 - Selects the next ready provider from the configured chain.
 - Creates and starts a successor in the same workspace with chain metadata.
 - Adds a transition card to the previous chat and exposes the chain in a workspace panel.
