@@ -69,6 +69,46 @@ describe("classifyTurn", () => {
     expect(classifyTurn(failed("overloaded_error"), [user("x")], { ...ALL, overloaded: true })?.class).toBe("overloaded");
   });
 
+  it("detects Claude's 5-hour limit failure and parses the reset clock", () => {
+    const now = new Date(2026, 10, 25, 11, 0, 0).getTime();
+    const result = classifyTurn(
+      failed("You've hit your 5-hour limit · resets 1:30pm (America/Chicago)"),
+      [user("fix it")],
+      ALL,
+      now,
+    );
+    expect(result?.class).toBe("quota");
+    expect(result?.resetAt).toBe(new Date(2026, 10, 25, 13, 30, 0).getTime());
+  });
+
+  it("detects Codex's usage limit failure and parses 'try again at'", () => {
+    const now = new Date(2026, 10, 24, 13, 0, 0).getTime();
+    const result = classifyTurn(
+      failed(
+        "You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/settings/usage to purchase more credits or try again at 3:26 PM.",
+      ),
+      [user("fix it")],
+      ALL,
+      now,
+    );
+    expect(result?.class).toBe("quota");
+    expect(result?.resetAt).toBe(new Date(2026, 10, 24, 15, 26, 0).getTime());
+  });
+
+  it("detects other rolling, multi-word, and capacity quota phrasings", () => {
+    expect(classifyTurn(failed("You have reached your 5 hour limit"), [user("x")], ALL)?.class).toBe("quota");
+    expect(classifyTurn(failed("You've hit your extra usage limit"), [user("x")], ALL)?.class).toBe("quota");
+    expect(classifyTurn(failed("5-hour limit reached"), [user("x")], ALL)?.class).toBe("quota");
+    expect(
+      classifyTurn(failed("You have exhausted your capacity on this model."), [user("x")], ALL)?.class,
+    ).toBe("quota");
+  });
+
+  it("still classifies 'you've hit your rate limit' as rate_limit rather than quota", () => {
+    expect(classifyTurn(failed("You've hit your rate limit"), [user("x")], ALL)?.class).toBe("rate_limit");
+    expect(classifyTurn(failed("You've hit your rate limit"), [user("x")], { ...ALL, rateLimit: false })).toBeNull();
+  });
+
   it("ignores plain failures unrelated to limits", () => {
     expect(classifyTurn(failed("ENOENT: no such file"), [user("x")], ALL)).toBeNull();
   });
@@ -82,5 +122,6 @@ describe("parseResetAt", () => {
   it("parses clock times, rolling to tomorrow when already past", () => {
     expect(parseResetAt("limit resets at 3pm", now)).toBe(new Date(2026, 8, 30, 15, 0, 0).getTime());
     expect(parseResetAt("resets 9am", now)).toBe(new Date(2026, 9, 1, 9, 0, 0).getTime());
+    expect(parseResetAt("try again at 3:26 PM.", now)).toBe(new Date(2026, 8, 30, 15, 26, 0).getTime());
   });
 });

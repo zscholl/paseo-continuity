@@ -33,7 +33,16 @@ export default function contribute(server: PluginServerContext) {
     if (state.isHandled(event.agent.id) || state.isInFlight(event.agent.id)) return;
 
     const classification = classifyTurn(event.outcome, event.timeline, settings.triggers);
-    if (!classification) return;
+    if (!classification) {
+      if (event.outcome.kind === "failed") {
+        console.log("[continuity] failed turn did not match triggers", {
+          agentId: event.agent.id,
+          provider: event.agent.provider,
+          error: [event.outcome.error.code, event.outcome.error.message].filter(Boolean).join(": "),
+        });
+      }
+      return;
+    }
     if (!state.startInFlight(event.agent.id)) return;
 
     console.log("[continuity] failover triggered", {

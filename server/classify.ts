@@ -13,12 +13,13 @@ export interface Classification {
 
 const QUOTA = [
   /insufficient[_ ]quota/i,
-  /usage limit (?:reached|exceeded)/i,
-  /you(?:'|’)?ve (?:hit|reached) your (?:usage |weekly |daily |monthly |session )?limit/i,
+  /\b(?:\d+[- ]?(?:hour|hr|day|week|month)|hourly|daily|weekly|monthly|session|usage|spend(?:ing)?|plan|credit|token|message)\s+(?:usage\s+)?limit\s+(?:reached|exceeded|hit)\b/i,
+  /you(?:(?:'|’)?ve|\s+have)\s+(?:hit|reached|exceeded)\s+(?:your|the)\s+(?:(?!rate\s+limit\b)[\w-]+\s+){0,3}limit\b/i,
   /out of credits/i,
   /credit balance is too low/i,
-  /quota (?:exceeded|exhausted)/i,
+  /quota (?:exceeded|exhausted|reached)/i,
   /exceeded your current quota/i,
+  /exhausted (?:your )?(?:[\w-]+\s+){0,2}(?:quota|capacity|credits)\b/i,
   /resource[_ ]exhausted/i,
   /usage_limit/i,
 ];
@@ -102,7 +103,7 @@ export function parseResetAt(text: string, now: number): number | undefined {
     return now + amount * factor;
   }
 
-  const clock = text.match(/resets?(?: at)? (\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+  const clock = text.match(/(?:resets?(?: at)?|(?:try again|retry) at) (\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
   if (clock) {
     let hours = Number(clock[1]);
     const minutes = clock[2] ? Number(clock[2]) : 0;
